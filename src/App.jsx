@@ -1,96 +1,81 @@
 // src/App.jsx
-
 import React, { useState } from 'react';
 import {
     startRegistration,
     startAuthentication,
 } from '@simplewebauthn/browser';
 
-// Base URL for your backend server
 const API_URL = 'https://password-test-backend.vercel.app';
 
 function App() {
     const [username, setUsername] = useState('');
-    const [message, setMessage] = useState('');
+    const [message, setMessage] = useState(null);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     const setFlashMessage = (msg, isError = false) => {
         setMessage({ text: msg, type: isError ? 'error' : 'success' });
-        setTimeout(() => setMessage(''), 3000);
+        setTimeout(() => setMessage(null), 3000);
     };
 
     const handleRegister = async (e) => {
         e.preventDefault();
-        if (!username) {
-            setFlashMessage('Please enter a username', true);
-            return;
-        }
+        if (!username) return setFlashMessage('Please enter a username', true);
 
         try {
-            // 1. Get registration options from the server
-            const optionsRes = await fetch(`${API_URL}/generate-registration-options?username=${username}`);
-            const options = await optionsRes.json();
-            if (options.error) {
-                throw new Error(options.error);
-            }
+            const res = await fetch(`${API_URL}/generate-registration-options?username=${username}`);
+            const options = await res.json();
+            if (options.error) throw new Error(options.error);
 
-            // 2. Pass options to WebAuthn browser API
             const registrationResponse = await startRegistration(options);
 
-            // 3. Send response to server for verification
-            const verificationRes = await fetch(`${API_URL}/verify-registration`, {
+            const verifyRes = await fetch(`${API_URL}/verify-registration`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, response: registrationResponse }),
             });
-            const verificationJSON = await verificationRes.json();
 
-            if (verificationJSON && verificationJSON.verified) {
+            const verification = await verifyRes.json();
+
+            if (verification.verified) {
                 setFlashMessage('Registration successful! You can now log in.');
             } else {
-                throw new Error(verificationJSON.error || 'Verification failed.');
+                throw new Error(verification.error || 'Verification failed.');
             }
-        } catch (error) {
-            setFlashMessage(error.message || 'Registration failed.', true);
-            console.error(error);
+        } catch (err) {
+            console.error(err);
+            setFlashMessage(err.message || 'Registration failed.', true);
         }
     };
 
     const handleLogin = async (e) => {
         e.preventDefault();
-        if (!username) {
-            setFlashMessage('Please enter your username', true);
-            return;
-        }
 
         try {
-            // 1. Get authentication options from the server
-            const optionsRes = await fetch(`${API_URL}/generate-authentication-options?username=${username}`);
-            const options = await optionsRes.json();
-            if (options.error) {
-                throw new Error(options.error);
-            }
+            // Get options without username (usernameless login)
+            const res = await fetch(`${API_URL}/generate-authentication-options`);
+            const options = await res.json();
+            if (options.error) throw new Error(options.error);
 
-            // 2. Pass options to WebAuthn browser API
             const authResponse = await startAuthentication(options);
 
-            // 3. Send response to server for verification
-            const verificationRes = await fetch(`${API_URL}/verify-authentication`, {
+            const verifyRes = await fetch(`${API_URL}/verify-authentication`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, response: authResponse }),
+                body: JSON.stringify({ response: authResponse }),
             });
-            const verificationJSON = await verificationRes.json();
 
-            if (verificationJSON && verificationJSON.verified) {
+            const verification = await verifyRes.json();
+
+            if (verification.verified) {
                 setIsLoggedIn(true);
+                setUsername(verification.username || ''); // optional: returned from backend
                 setFlashMessage('Login successful!');
             } else {
-                throw new Error(verificationJSON.error || 'Authentication failed.');
+                throw new Error(verification.error || 'Authentication failed.');
             }
-        } catch (error) {
-            setFlashMessage(error.message || 'Login failed.', true);
-            console.error(error);
+        } catch (err) {
+            console.error(err);
+            setFlashMessage(err.message || 'Login failed.', true);
         }
     };
 
@@ -104,7 +89,7 @@ function App() {
         <div className="flex items-center justify-center min-h-screen bg-gray-100 font-sans">
             <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
                 <h1 className="text-3xl font-bold text-center text-gray-800">
-                    WebAuthn Login
+                    WebAuthn Biometric Login
                 </h1>
 
                 {message && (
@@ -132,11 +117,8 @@ function App() {
                 ) : (
                     <form className="space-y-6">
                         <div>
-                            <label
-                                htmlFor="username"
-                                className="block text-sm font-medium text-gray-700"
-                            >
-                                Username
+                            <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                                Username (for registration only)
                             </label>
                             <input
                                 id="username"
@@ -144,7 +126,7 @@ function App() {
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                placeholder="Enter your username"
+                                placeholder="Enter username"
                             />
                         </div>
                         <div className="flex space-x-4">
@@ -158,7 +140,7 @@ function App() {
                                 onClick={handleLogin}
                                 className="w-full px-4 py-2 text-lg font-semibold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 transition"
                             >
-                                Login
+                                Login (Biometric)
                             </button>
                         </div>
                     </form>
