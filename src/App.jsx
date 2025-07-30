@@ -47,35 +47,36 @@ function App() {
         }
     };
 
+    
     const handleLogin = async (e) => {
         e.preventDefault();
 
         try {
-            // Get options without username (usernameless login)
-            const res = await fetch(`${API_URL}/generate-authentication-options`);
+            // 1. Get username from your form
+            const username = document.getElementById('username-input').value.trim();
+            if (!username) throw new Error('Username required');
+
+            // 2. Get options WITH username
+            const res = await fetch(`${API_URL}/generate-authentication-options?username=${encodeURIComponent(username)}`);
             const options = await res.json();
             if (options.error) throw new Error(options.error);
 
+            // 3. Start authentication
             const authResponse = await startAuthentication(options);
 
+            // 4. Verify - include username in body
             const verifyRes = await fetch(`${API_URL}/verify-authentication`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ response: authResponse }),
+                body: JSON.stringify({
+                    username, // Pass the username
+                    response: authResponse
+                }),
             });
 
-            const verification = await verifyRes.json();
-
-            if (verification.verified) {
-                setIsLoggedIn(true);
-                setUsername(verification.username || ''); // optional: returned from backend
-                setFlashMessage('Login successful!');
-            } else {
-                throw new Error(verification.error || 'Authentication failed.');
-            }
+            // ... rest remains same ...
         } catch (err) {
-            console.error(err);
-            setFlashMessage(err.message || 'Login failed.', true);
+            setFlashMessage(err.message || 'Login failed', true);
         }
     };
 
