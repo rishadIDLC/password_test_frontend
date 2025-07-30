@@ -47,14 +47,12 @@ function App() {
         }
     };
 
-    
+
     const handleLogin = async (e) => {
         e.preventDefault();
 
         try {
-            // 1. Get username from your form
-            const username = document.getElementById('username-input').value.trim();
-            if (!username) throw new Error('Username required');
+   
 
             // 2. Get options WITH username
             const res = await fetch(`${API_URL}/generate-authentication-options?username=${encodeURIComponent(username)}`);
