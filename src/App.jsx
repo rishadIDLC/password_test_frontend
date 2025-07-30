@@ -7,7 +7,7 @@ import {
 } from '@simplewebauthn/browser';
 
 // Base URL for your backend server
-const API_URL = 'http://localhost:3000';
+const API_URL = 'https://password-test-backend.vercel.app';
 
 function App() {
     const [username, setUsername] = useState('');
